@@ -36,8 +36,67 @@ import os
 from scipy.optimize import minimize
 
 
-def read_BK14(prefix='BK14_cosmomc'):
+def BK14_data(band):
     """
-    Read results from BICEP2 / Keck Array 2014 data release.
+    Results from BICEP2 / Keck BK14 data release.
+
+    Parameters
+    ----------
+    band : str, optional
+        Specify which frequency band to use. Should be either "BK14_95" or
+        "BK14_150". Defaults to "BK14_150".
+
+    Returns
+    -------
+    data : tuple, two elements
+        Bandpower statistics for EE (first element) and BB (second element).
 
     """
+
+    # Data structures for results.
+    EE = {'nsplit': 1}
+    BB = {'nsplit': 1}
+    
+    return (EE, BB)
+
+
+def ACTpol_1yr_data():
+    # Data structures for results.
+    EE = {'nsplit': 4}
+    BB = {'nsplit': 4}
+    
+    return (EE, BB)
+
+
+def ACTpol_2yr_data():
+    # Data structures for results.
+    EE = {'nsplit': 4}
+    BB = {'nsplit': 4}
+    
+    return (EE, BB)
+
+
+def SPTpol_data():
+    # Data structures for results.
+    EE = {'nsplit': 1}
+    BB = {'nsplit': 1}
+    
+    return (EE, BB)
+
+
+def POLARBEAR_data():
+    # Data structures for results.
+    EE = {'nsplit': 1}
+    BB = {'nsplit': 1}
+    
+    return (EE, BB)
+
+
+def QUIET_data():
+    # Data structures for results.
+    EE = {'nsplit': 1}
+    BB = {'nsplit': 1}
+    
+    return (EE, BB)
+
+
