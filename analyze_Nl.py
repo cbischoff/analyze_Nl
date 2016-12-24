@@ -72,6 +72,10 @@ def BK14_data(band='BK14_150', prefix='BK14_cosmomc'):
     EE = {'nsplit': 1}
     BB = {'nsplit': 1}
 
+    # Ell bins: nine bins, delta-ell = 35, starting from ell = 20.
+    EE['bins'] = np.arange(20, 336, 35.0)
+    BB['bins'] = EE['bins']
+    
     # Load bandpower covariance matrix.
     bpcm = np.genfromtxt(os.path.join(prefix, 'data', 'BK14',
                                       'BK14_covmat_dust.dat'))
@@ -153,3 +157,74 @@ def QUIET_data():
     BB = {'nsplit': 1}
     
     return (EE, BB)
+
+
+def calculate_Nl(EE, BB):
+    """
+    Calculate Nl and effective fsky per bin.
+
+    Calculation assumes that EE and BB have symmetric noise and filtering.
+    Accounts for cross-spectrum based analysis and returns the Nl that 
+    would be obtained if all data were coadded into a single map.
+
+    Parameters
+    ----------
+    EE, BB : dict
+        Data structures describing EE and BB bandpowers. Use the functions
+        defined above to obtain these data for various experiments.
+    
+    Returns
+    -------
+    Nl : (N,) ndarray
+        Nl values for all ell bins.
+    fsky : (N,) ndarray
+        Effective fsky for all ell bins, defined in a Knox formula sense.
+
+    """
+
+    # Number of data splits (should be same for EE and BB).
+    if EE['nsplit'] == 1:
+        x = 1.0
+    else:
+        x = float(EE['nsplit']) / (float(EE['nsplit']) - 1.0)
+        
+    # Quadratic expression for Nl
+    a = (EE['sigma']**2 - BB['sigma']**2) * x
+    b = 2.0 * (BB['expv'] * EE['sigma']**2 - EE['expv'] * BB['sigma']**2)
+    c = (BB['expv'] * EE['sigma'])**2 - (EE['expv'] * BB['sigma'])**2
+    Nl = (-1.0 * b + np.sqrt(b**2 - 4.0 * a * c)) / (2.0 * a)
+
+    # Calculate degrees-of-freedom as a function of ell.
+    dof = BB['expv']**2 + 2.0 * BB['expv'] * Nl + x * Nl**2
+    dof = 2.0 * dof / BB['sigma']
+    # Convert to effective fsky based on ell bin definitions.
+    fsky = dof / dof_fullsky(BB['bins'])
+
+    return (Nl, fsky)
+
+
+def dof_fullsky(bins):
+    """
+    Calculate degrees-of-freedom for the specified bin definitions 
+    assuming a full sky experiment and tophat bins.
+
+    Parameters
+    ----------
+    bins : (N+1,) ndarray
+        List of bin edges. Length should be one more than the number of bins.
+    
+    Returns
+    -------
+    dof : (N,) ndarray
+        Degrees-of-freedom per bin.
+
+    """
+
+    N = len(bins) - 1
+    dof = np.zeros((N, ))
+    # Just add up 2 * ell + 1 over the ell bin ranges.
+    for i in range(N):
+        dof[i] = np.sum(2.0 * np.arange(bins[i], bins[i+1]) + 1.0)
+
+    return dof
+    
