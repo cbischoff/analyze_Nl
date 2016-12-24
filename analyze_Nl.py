@@ -18,7 +18,7 @@ of pure-B estimators. For more details, see the posting here:
 
 Data releases from CMB experiments are not included here. You can
 find them at the following links:
-  - BICEP2 / Keck: http://www.bicepkeck.org/
+  - BICEP2/Keck: http://www.bicepkeck.org/
   - ACTPol: https://lambda.gsfc.nasa.gov/product/act/actpol_prod_table.cfm
   - SPTPol: https://lambda.gsfc.nasa.gov/product/spt/sptpol_prod_table.cfm
   - POLARBEAR: https://lambda.gsfc.nasa.gov/product/polarbear/polarbear_prod_table.cfm
@@ -36,15 +36,21 @@ import os
 from scipy.optimize import minimize
 
 
-def BK14_data(band):
+def BK14_data(band='BK14_150', prefix='BK14_cosmomc'):
     """
     Results from BICEP2 / Keck BK14 data release.
+    
+    This function reads data from the BK14 cosmomc data release, which can
+    be downloaded from: 
+    http://www.bicepkeck.org/BK14_datarelease/BK14_cosmomc.tgz
 
     Parameters
     ----------
     band : str, optional
         Specify which frequency band to use. Should be either "BK14_95" or
         "BK14_150". Defaults to "BK14_150".
+    prefix : str, optional
+        Path to directory containing BK14 cosmomc data release.
 
     Returns
     -------
@@ -53,14 +59,63 @@ def BK14_data(band):
 
     """
 
+    # Select 95 or 150 GHz.
+    if band == 'BK14_95':
+        (iEE, iBB) = (0, 1)
+    elif band == 'BK14_150':
+        (iEE, iBB) = (2, 3)
+    else:
+        print "ERROR: BK14 band selection is invalid"
+        return
+        
     # Data structures for results.
     EE = {'nsplit': 1}
     BB = {'nsplit': 1}
+
+    # Load bandpower covariance matrix.
+    bpcm = np.genfromtxt(os.path.join(prefix, 'data', 'BK14',
+                                      'BK14_covmat_dust.dat'))
+    # This matrix has shape (2277, 2277).
+    # Nine ell bins times 253 different EE/BB/EB spectra.
+    nmaps = 11 * 2
+    nspec = nmaps * (nmaps + 1) / 2
+    # Extract auto spectrum error bars for EE and BB.
+    EE['sigma'] = np.sqrt(bpcm[range(iEE, nspec * 9, nspec),
+                               range(iEE, nspec * 9, nspec)])
+    BB['sigma'] = np.sqrt(bpcm[range(iBB, nspec * 9, nspec),
+                               range(iBB, nspec * 9, nspec)])
+
+    # Load bandpower expectation values for the LCDM+dust model that
+    # corresponds to the bandpower covariance matrix.
+    model = np.genfromtxt(os.path.join(prefix, 'data', 'BK14',
+                                       'BK14_fiducial_dust.dat'))
+    # This array has shape (9, nspec+1). The first column is ell bin index.
+    EE['expv'] = model[:, iEE+1]
+    BB['expv'] = model[:, iBB+1]
     
     return (EE, BB)
 
 
-def ACTpol_1yr_data():
+def ACTpol_1yr_data(prefix='like_actpol_s1'):
+    """
+    Results from ACTPol first season data release.
+
+    This function reads data from the ACTPol 2014 likelihood, which can be 
+    downloaded from here:
+    https://lambda.gsfc.nasa.gov/data/suborbital/ACT/act_pol/like_actpol_s1.tar.gz
+
+    Parameters
+    ----------
+    prefix : str, optional
+        Path to directory containing ACTPol first season data release.
+
+    Returns
+    -------
+    data : tuple, two elements
+        Bandpower statistics for EE (first element) and BB (second element).
+
+    """
+    
     # Data structures for results.
     EE = {'nsplit': 4}
     BB = {'nsplit': 4}
@@ -98,5 +153,3 @@ def QUIET_data():
     BB = {'nsplit': 1}
     
     return (EE, BB)
-
-
