@@ -32,7 +32,7 @@ to download.
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-import os
+from os.path import join
 from scipy.optimize import minimize
 
 
@@ -62,11 +62,13 @@ def BK14_data(band='BK14_150', prefix='BK14_cosmomc'):
     # Select 95 or 150 GHz.
     if band == 'BK14_95':
         (iEE, iBB) = (0, 1)
+        fwhm = 43.0 / 60.0 # beamsize, in degrees
     elif band == 'BK14_150':
         (iEE, iBB) = (2, 3)
+        fwhm = 30.0 / 60.0 # beamsize, in degrees
     else:
         print "ERROR: BK14 band selection is invalid"
-        return
+        return None
         
     # Data structures for results.
     EE = {'nsplit': 1}
@@ -75,10 +77,33 @@ def BK14_data(band='BK14_150', prefix='BK14_cosmomc'):
     # Ell bins: nine bins, delta-ell = 35, starting from ell = 20.
     EE['bins'] = np.arange(20, 336, 35.0)
     BB['bins'] = EE['bins']
-    
+
+    # Loop over bandpower window functions.
+    nbin = 9
+    # Calculate mean ell of each bandpower. This will be used to convert
+    # from Dl to Cl.
+    EE['ell'] = np.zeros(nbin)
+    BB['ell'] = np.zeros(nbin)
+    # Also, calculate Bl^2 averaged across each bandpower.
+    EE['Bl2'] = np.zeros(nbin)
+    BB['Bl2'] = np.zeros(nbin)
+    for i in range(nbin):
+        # Read bandpower window function.
+        filename = 'BK14_bpwf_bin{}.txt'.format(i + 1)
+        bpwf = np.genfromtxt(join(prefix, 'data', 'BK14',
+                                  'windows', filename))
+        # Mean ell for each bandpower.
+        EE['ell'][i] = np.average(bpwf[:,0], weights=bpwf[:,iEE])
+        BB['ell'][i] = np.average(bpwf[:,0], weights=bpwf[:,iBB])
+        # Mean value of Bl^2.
+        sigma_rad = np.radians(fwhm / np.sqrt(8.0 * np.log(2)))
+        Bl2 = np.exp(-1.0 * bpwf[:,0]**2 * sigma_rad**2)
+        EE['Bl2'][i] = np.average(Bl2, weights=bpwf[:,iEE])
+        BB['Bl2'][i] = np.average(Bl2, weights=bpwf[:,iBB])
+        
     # Load bandpower covariance matrix.
-    bpcm = np.genfromtxt(os.path.join(prefix, 'data', 'BK14',
-                                      'BK14_covmat_dust.dat'))
+    bpcm = np.genfromtxt(join(prefix, 'data', 'BK14',
+                              'BK14_covmat_dust.dat'))
     # This matrix has shape (2277, 2277).
     # Nine ell bins times 253 different EE/BB/EB spectra.
     nmaps = 11 * 2
@@ -88,14 +113,24 @@ def BK14_data(band='BK14_150', prefix='BK14_cosmomc'):
                                range(iEE, nspec * 9, nspec)])
     BB['sigma'] = np.sqrt(bpcm[range(iBB, nspec * 9, nspec),
                                range(iBB, nspec * 9, nspec)])
-
+    # Convert from Dl to Cl and multiply by Bl^2.
+    EE['sigma'] = EE['sigma'] * 2.0 * np.pi / EE['ell'] / (EE['ell'] + 1.0)
+    EE['sigma'] = EE['sigma'] * EE['Bl2']
+    BB['sigma'] = BB['sigma'] * 2.0 * np.pi / BB['ell'] / (BB['ell'] + 1.0)
+    BB['sigma'] = BB['sigma'] * BB['Bl2']
+    
     # Load bandpower expectation values for the LCDM+dust model that
     # corresponds to the bandpower covariance matrix.
-    model = np.genfromtxt(os.path.join(prefix, 'data', 'BK14',
-                                       'BK14_fiducial_dust.dat'))
+    model = np.genfromtxt(join(prefix, 'data', 'BK14',
+                               'BK14_fiducial_dust.dat'))
     # This array has shape (9, nspec+1). The first column is ell bin index.
     EE['expv'] = model[:, iEE+1]
     BB['expv'] = model[:, iBB+1]
+    # Convert from Dl to Cl and multiply by Bl^2.
+    EE['expv'] = EE['expv'] * 2.0 * np.pi / EE['ell'] / (EE['ell'] + 1.0)
+    EE['expv'] = EE['expv'] * EE['Bl2']
+    BB['expv'] = BB['expv'] * 2.0 * np.pi / BB['ell'] / (BB['ell'] + 1.0)
+    BB['expv'] = BB['expv'] * BB['Bl2']
     
     return (EE, BB)
 
@@ -196,7 +231,7 @@ def calculate_Nl(EE, BB):
 
     # Calculate degrees-of-freedom as a function of ell.
     dof = BB['expv']**2 + 2.0 * BB['expv'] * Nl + x * Nl**2
-    dof = 2.0 * dof / BB['sigma']
+    dof = 2.0 * dof / BB['sigma']**2
     # Convert to effective fsky based on ell bin definitions.
     fsky = dof / dof_fullsky(BB['bins'])
 
