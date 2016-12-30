@@ -135,7 +135,8 @@ def BK14_data(band='BK14_150', prefix='BK14_cosmomc'):
     return (EE, BB)
 
 
-def ACTpol_1yr_data(prefix='like_actpol_s1'):
+def ACTpol_1yr_data(prefix='like_actpol_s1',
+                    camb_file='camb_72686694_lensedcls.dat'):
     """
     Results from ACTPol first season data release.
 
@@ -147,6 +148,8 @@ def ACTpol_1yr_data(prefix='like_actpol_s1'):
     ----------
     prefix : str, optional
         Path to directory containing ACTPol first season data release.
+    camb_file : str, optional
+        Path to CAMB .dat file containing lensed-LCDM theory spectra.
 
     Returns
     -------
@@ -156,9 +159,77 @@ def ACTpol_1yr_data(prefix='like_actpol_s1'):
     """
     
     # Data structures for results.
+    # ACT uses cross-spectrum analysis with data split into four maps
+    # alternating by day.
     EE = {'nsplit': 4}
     BB = {'nsplit': 4}
+
+    # Ell bins: 57 bins, starting from ell=126
+    #   delta-ell = 50 for bins 1--38
+    #   delta-ell = 100 for bins 39--43
+    #   delta-ell = 200 for bins 44--46
+    #   delta-ell = 400 for bins 47--54
+    #   delta-ell = 800 for bins 55--57
+    # But drop the first two bins, which aren't used for EE/BB spectra.
+    # Include the upper limit of the last bin.
+    bins = np.genfromtxt(join(prefix, 'data', 'data_act', 'Binning.dat'))
+    nbin = bins.shape[0]
+    EE['bins'] = np.zeros(nbin - 1)
+    EE['bins'][0:nbin-2] = bins[2:,0]
+    EE['bins'][nbin-2] = bins[-1,1]
+    BB['bins'] = EE['bins']
+
+    # Read bandpower error bars.
+    EEpath = join(prefix, 'data', 'data_act', 'spectrum_EE.dat')
+    EEdata = np.genfromtxt(EEpath)
+    EE['sigma'] = EEdata[:,2] # sigma(C_l), in uK^2
+    BBpath = join(prefix, 'data', 'data_act', 'spectrum_BB.dat')
+    BBdata = np.genfromtxt(BBpath)
+    BB['sigma'] = BBdata[:,2] # sigma(C_l), in uK^2
     
+    # Read ACTPol bandpower window functions.
+    bpwffile = join(prefix, 'data', 'data_act', 'BblMean_Pol.dat')
+    bpwf = np.genfromtxt(bpwffile)
+    # Drop the first two window functions, which correspond to ell=150 and
+    # ell=200 bins, not included in EE/BB spectra.
+    bpwf = bpwf[2:,:]
+    # Get EE and BB theory spectra (generated with CAMB).
+    (ell, EE_th, BB_th) = theory_spectra(camb_file)
+    # Find common ell range between ACTPol bpwf and CAMB theory spectrum.
+    # ACTPol bpwf are defined from ell = 1--9000.
+    lmin = np.max([1, ell.min()])
+    lmax = np.min([9000, ell.max()])
+    i0_bpwf = int(lmin - 1)
+    i1_bpwf = int(lmax)
+    i0_th = int(np.where(ell == lmin)[0][0])
+    i1_th = int(np.where(ell == lmax)[0][0] + 1)
+    # Calculate mean ell for each bandpower, bandpower expectation values,
+    # and beam window function.
+    nbin = bpwf.shape[0]
+    EE['ell'] = np.zeros(nbin)
+    BB['ell'] = np.zeros(nbin)
+    EE['expv'] = np.zeros(nbin)
+    BB['expv'] = np.zeros(nbin)
+    EE['Bl2'] = np.zeros(nbin)
+    BB['Bl2'] = np.zeros(nbin)
+    fwhm_deg = 1.3 / 60.
+    sigma_rad = np.radians(fwhm_deg * np.sqrt(8.0 * np.log(2.0)))
+    Bl2 = np.exp(-1.0 * ell * (ell + 1.0) * sigma_rad**2)
+    for i in range(nbin):
+        # Mean ell for bandpower.
+        EE['ell'][i] = np.average(np.arange(i0_bpwf, i1_bpwf),
+                                  weights=bpwf[i, i0_bpwf:i1_bpwf])
+        BB['ell'][i] = EE['ell'][i]
+        # Bandpower expectation values from theory spectra.
+        EE['expv'][i] = np.average(EE_th[i0_th:i1_th],
+                                   weights=bpwf[i, i0_bpwf:i1_bpwf])
+        BB['expv'][i] = np.average(BB_th[i0_th:i1_th],
+                                   weights=bpwf[i, i0_bpwf:i1_bpwf])
+        # Beam window function.
+        EE['Bl2'][i] = np.average(Bl2[i0_th:i1_th],
+                                  weights=bpwf[i, i0_bpwf:i1_bpwf])
+        BB['Bl2'][i] = EE['Bl2'][i]
+        
     return (EE, BB)
 
 
@@ -192,6 +263,35 @@ def QUIET_data():
     BB = {'nsplit': 1}
     
     return (EE, BB)
+
+
+def theory_spectra(camb_file):
+    """
+    Read CMB theory spectra from CAMB .dat file
+
+    Parameters
+    ----------
+    camb_file : str
+        Path to CAMB .dat file (not .fits!)
+
+    Returns
+    -------
+    ell : (N,) ndarray
+        Ell values for EE, BB spectra. Usually starts from ell=2.
+    EE : (N,) ndarray
+        EE spectrum C_l, in uK^2
+    BB : (N,) ndarray
+        BB spectrum C_l, in uK^2
+
+    """
+
+    camb = np.genfromtxt(camb_file)
+    ell = camb[:,0]
+    # For EE and BB, convert from D_l to C_l.
+    EE = camb[:,2] * 2.0 * np.pi / ell / (ell + 1.0)
+    BB = camb[:,3] * 2.0 * np.pi / ell / (ell + 1.0)
+
+    return (ell, EE, BB)
 
 
 def calculate_Nl(EE, BB):
