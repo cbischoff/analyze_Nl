@@ -4,3 +4,6 @@ actpol_s2
 like_actpol_s1
 polarbear_1
 sptpol_2015
+
+# Also, miscellaneous data file (like CAMB files)
+*.dat
