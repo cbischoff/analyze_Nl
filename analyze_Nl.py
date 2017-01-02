@@ -54,8 +54,8 @@ def BK14_data(band='BK14_150', prefix='BK14_cosmomc'):
 
     Returns
     -------
-    data : tuple, two elements
-        Bandpower statistics for EE (first element) and BB (second element).
+    EE, BB : dict
+        Bandpower statistics for EE and BB.
 
     """
 
@@ -93,13 +93,14 @@ def BK14_data(band='BK14_150', prefix='BK14_cosmomc'):
         bpwf = np.genfromtxt(join(prefix, 'data', 'BK14',
                                   'windows', filename))
         # Mean ell for each bandpower.
-        EE['ell'][i] = np.average(bpwf[:,0], weights=bpwf[:,iEE])
-        BB['ell'][i] = np.average(bpwf[:,0], weights=bpwf[:,iBB])
+        ell = bpwf[:,0]
+        EE['ell'][i] = np.average(ell, weights=bpwf[:,iEE+1])
+        BB['ell'][i] = np.average(ell, weights=bpwf[:,iBB+1])
         # Mean value of Bl^2.
         sigma_rad = np.radians(fwhm / np.sqrt(8.0 * np.log(2)))
-        Bl2 = np.exp(-1.0 * bpwf[:,0]**2 * sigma_rad**2)
-        EE['Bl2'][i] = np.average(Bl2, weights=bpwf[:,iEE])
-        BB['Bl2'][i] = np.average(Bl2, weights=bpwf[:,iBB])
+        Bl2 = np.exp(-1.0 * ell * (ell + 1) * sigma_rad**2)
+        EE['Bl2'][i] = np.average(Bl2, weights=bpwf[:,iEE+1])
+        BB['Bl2'][i] = np.average(Bl2, weights=bpwf[:,iBB+1])
         
     # Load bandpower covariance matrix.
     bpcm = np.genfromtxt(join(prefix, 'data', 'BK14',
@@ -113,11 +114,9 @@ def BK14_data(band='BK14_150', prefix='BK14_cosmomc'):
                                range(iEE, nspec * 9, nspec)])
     BB['sigma'] = np.sqrt(bpcm[range(iBB, nspec * 9, nspec),
                                range(iBB, nspec * 9, nspec)])
-    # Convert from Dl to Cl and multiply by Bl^2.
+    # Convert from Dl to Cl.
     EE['sigma'] = EE['sigma'] * 2.0 * np.pi / EE['ell'] / (EE['ell'] + 1.0)
-    EE['sigma'] = EE['sigma'] * EE['Bl2']
     BB['sigma'] = BB['sigma'] * 2.0 * np.pi / BB['ell'] / (BB['ell'] + 1.0)
-    BB['sigma'] = BB['sigma'] * BB['Bl2']
     
     # Load bandpower expectation values for the LCDM+dust model that
     # corresponds to the bandpower covariance matrix.
@@ -126,22 +125,18 @@ def BK14_data(band='BK14_150', prefix='BK14_cosmomc'):
     # This array has shape (9, nspec+1). The first column is ell bin index.
     EE['expv'] = model[:, iEE+1]
     BB['expv'] = model[:, iBB+1]
-    # Convert from Dl to Cl and multiply by Bl^2.
+    # Convert from Dl to Cl.
     EE['expv'] = EE['expv'] * 2.0 * np.pi / EE['ell'] / (EE['ell'] + 1.0)
-    EE['expv'] = EE['expv'] * EE['Bl2']
     BB['expv'] = BB['expv'] * 2.0 * np.pi / BB['ell'] / (BB['ell'] + 1.0)
-    BB['expv'] = BB['expv'] * BB['Bl2']
 
     # Read the actual N_l spectra, which are provided in the data release.
     Nl_actual = np.genfromtxt(join(prefix, 'data', 'BK14', 'BK14_noise.dat'))
     # This array has shape (9, nspec+1). The first column is ell bin index.
     EE['Nl_actual'] = Nl_actual[:, iEE+1]
     BB['Nl_actual'] = Nl_actual[:, iBB+1]
-    # Convert from Dl to Cl and multiply by Bl^2.
+    # Convert from Dl to Cl.
     EE['Nl_actual'] = EE['Nl_actual'] * 2.0 * np.pi / EE['ell'] / (EE['ell'] + 1.0)
-    EE['Nl_actual'] = EE['Nl_actual'] * EE['Bl2']
     BB['Nl_actual'] = BB['Nl_actual'] * 2.0 * np.pi / BB['ell'] / (BB['ell'] + 1.0)
-    BB['Nl_actual'] = BB['Nl_actual'] * BB['Bl2']    
     
     return (EE, BB)
 
@@ -164,8 +159,8 @@ def ACTpol_1yr_data(prefix='like_actpol_s1',
 
     Returns
     -------
-    data : tuple, two elements
-        Bandpower statistics for EE (first element) and BB (second element).
+    EE, BB : dict
+        Bandpower statistics for EE and BB.
 
     """
     
@@ -224,7 +219,7 @@ def ACTpol_1yr_data(prefix='like_actpol_s1',
     EE['Bl2'] = np.zeros(nbin)
     BB['Bl2'] = np.zeros(nbin)
     fwhm_deg = 1.3 / 60.
-    sigma_rad = np.radians(fwhm_deg * np.sqrt(8.0 * np.log(2.0)))
+    sigma_rad = np.radians(fwhm_deg / np.sqrt(8.0 * np.log(2.0)))
     Bl2 = np.exp(-1.0 * ell * (ell + 1.0) * sigma_rad**2)
     for i in range(nbin):
         # Mean ell for bandpower.
