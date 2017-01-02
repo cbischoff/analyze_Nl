@@ -131,6 +131,17 @@ def BK14_data(band='BK14_150', prefix='BK14_cosmomc'):
     EE['expv'] = EE['expv'] * EE['Bl2']
     BB['expv'] = BB['expv'] * 2.0 * np.pi / BB['ell'] / (BB['ell'] + 1.0)
     BB['expv'] = BB['expv'] * BB['Bl2']
+
+    # Read the actual N_l spectra, which are provided in the data release.
+    Nl_actual = np.genfromtxt(join(prefix, 'data', 'BK14', 'BK14_noise.dat'))
+    # This array has shape (9, nspec+1). The first column is ell bin index.
+    EE['Nl_actual'] = Nl_actual[:, iEE+1]
+    BB['Nl_actual'] = Nl_actual[:, iBB+1]
+    # Convert from Dl to Cl and multiply by Bl^2.
+    EE['Nl_actual'] = EE['Nl_actual'] * 2.0 * np.pi / EE['ell'] / (EE['ell'] + 1.0)
+    EE['Nl_actual'] = EE['Nl_actual'] * EE['Bl2']
+    BB['Nl_actual'] = BB['Nl_actual'] * 2.0 * np.pi / BB['ell'] / (BB['ell'] + 1.0)
+    BB['Nl_actual'] = BB['Nl_actual'] * BB['Bl2']    
     
     return (EE, BB)
 
