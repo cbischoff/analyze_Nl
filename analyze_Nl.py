@@ -9,22 +9,58 @@ Derives N_l curves for published CMB B-mode results, including:
   - POLARBEAR 2014 results
   - QUIET Q-band and W-band results
 
-The method used to extract the N_l curves makes use of error bars
-for both BB and EE spectra to solve for both the noise level and
-degrees-of-freedom. It assumes that noise and filtering are 
-symmetric for E and B modes, which could break down for the case 
-of pure-B estimators. For more details, see the posting here: 
-(link TBD)
+Data functions
+--------------
 
-Data releases from CMB experiments are not included here. You can
-find them at the following links:
-  - BICEP2/Keck: http://www.bicepkeck.org/
-  - ACTPol: https://lambda.gsfc.nasa.gov/product/act/actpol_prod_table.cfm
-  - SPTPol: https://lambda.gsfc.nasa.gov/product/spt/sptpol_prod_table.cfm
-  - POLARBEAR: https://lambda.gsfc.nasa.gov/product/polarbear/polarbear_prod_table.cfm
-  - QUIET: https://lambda.gsfc.nasa.gov/product/quiet/index.cfm
-See function documentation below for details on exactly which files 
-to download.
+Most of the code included here is just for reading in data from various 
+CMB experiment data releases. These functions have names like "BK14_data" or
+"ACTpol_2yr_data".
+
+All of the data functions take an optional 'prefix' argument, which should
+be a path to the directory containing the appropriate data release. Data releases from CMB experiments are not included; you can find them at the
+following links:
+  - BICEP2/Keck : http://www.bicepkeck.org/
+  - ACTPol : https://lambda.gsfc.nasa.gov/product/act/actpol_prod_table.cfm
+  - SPTPol : https://lambda.gsfc.nasa.gov/product/spt/sptpol_prod_table.cfm
+  - POLARBEAR : https://lambda.gsfc.nasa.gov/product/polarbear/polarbear_prod_table.cfm
+  - QUIET : https://lambda.gsfc.nasa.gov/product/quiet/index.cfm
+If you download and extract the tarball from those links in the same directory
+as this code, then the default values of the prefix argument should work.
+
+The data functions all return a pair of dict structures, which contain 
+statistics for the EE and BB bandpowers. These data strutures always contain
+the following (key, value) pairs:
+  nsplit
+        number of split maps used for power spectrum analysis, nsplit = 1
+        implies auto-spectrum analysis
+  bins
+        ell values that define the edges of each ell bin (one more value than
+        the number of bins)
+  ell
+      mean ell value of each ell bin, evaluated from bandpower window
+      functions when available
+  expv
+      bandpower expectation values, expressed as C_l (not D_l) in uK^2
+  sigma
+      bandpower error bars, expressed as C_l (not D_l) in uK^2
+  Bl2
+      beam window function (squared)
+Some data functions will also include the following (key, value) pair:
+  Nl_actual
+      N_l curve provided with the data release (as opposed to the one we 
+      will calculate)
+
+Analysis functions
+------------------
+
+The calculate_Nl function uses expectation values and error bars for both 
+BB and EE spectra to simultaneously solve for the noise power and bandpower
+degrees-of-freedom. It assumes that noise and filtering are symmetric for 
+E and B modes, which could break down for the case of pure-B estimators. 
+For more details, see the posting here: (link TBD)
+
+Also provided is a function to fit the N_l curve to a functional form with
+a white noise component plus 1/ell noise.
 
 """
 
