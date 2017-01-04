@@ -272,7 +272,7 @@ def ACTpol_1yr_data(prefix='like_actpol_s1',
         EE['Bl2'][i] = np.average(Bl2[i0_th:i1_th],
                                   weights=bpwf[i, i0_bpwf:i1_bpwf])
         BB['Bl2'][i] = EE['Bl2'][i]
-        
+
     return (EE, BB)
 
 
@@ -361,7 +361,21 @@ def ACTpol_2yr_data(prefix='actpollite_s2_like',
 
     # Convert BB error bars from D_l to C_l.
     BB['sigma'] = BB['sigma'] * 2.0 * np.pi / BB['ell'] / (BB['ell'] + 1.0)
-        
+
+    # Read N_l for various fields from ACTpol data release.
+    Nl_actual = np.genfromtxt(join(prefix, 'fullspectra', 'noise_EE.dat'))
+    # This file contains ell=300 bin, not present in other files?
+    Nl_actual = Nl_actual[1:,:]
+    # Four N_l spectra:
+    #   1 = D5 deep field
+    #   2 = D6 deep field
+    #   3 = D56 wide field, PA1 detector array
+    #   4 = D56 wide field, PA2 detector array
+    EE['Nl_actual_D5'] = Nl_actual[:,1]
+    EE['Nl_actual_D6'] = Nl_actual[:,2]
+    EE['Nl_actual_D56_PA1'] = Nl_actual[:,3]
+    EE['Nl_actual_D56_PA2'] = Nl_actual[:,4]
+    
     return (EE, BB)
 
 
