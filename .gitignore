@@ -1,7 +1,7 @@
 # Don't try to commit subdirectories containing CMB data.
 BK14_cosmomc
-actpol_s2
 like_actpol_s1
+actpollite_s2_like
 polarbear_1
 sptpol_2015
 

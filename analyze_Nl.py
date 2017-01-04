@@ -74,7 +74,8 @@ from scipy.optimize import minimize
 
 def BK14_data(band='BK14_150', prefix='BK14_cosmomc'):
     """
-    Results from BICEP2 / Keck BK14 data release.
+    Results from BICEP2 / Keck BK14 data release (Keck Array and BICEP2 
+    Collaborations, 2016).
     
     This function reads data from the BK14 cosmomc data release, which can
     be downloaded from: 
@@ -180,7 +181,7 @@ def BK14_data(band='BK14_150', prefix='BK14_cosmomc'):
 def ACTpol_1yr_data(prefix='like_actpol_s1',
                     camb_file='camb_72686694_lensedcls.dat'):
     """
-    Results from ACTPol first season data release.
+    Results from ACTPol first season data release (Naess et al, 2014).
 
     This function reads data from the ACTPol 2014 likelihood, which can be 
     downloaded from here:
@@ -189,7 +190,7 @@ def ACTpol_1yr_data(prefix='like_actpol_s1',
     Parameters
     ----------
     prefix : str, optional
-        Path to directory containing ACTPol first season data release.
+        Path to directory containing ACTPol first season likelihood.
     camb_file : str, optional
         Path to CAMB .dat file containing lensed-LCDM theory spectra.
 
@@ -275,11 +276,92 @@ def ACTpol_1yr_data(prefix='like_actpol_s1',
     return (EE, BB)
 
 
-def ACTpol_2yr_data():
+def ACTpol_2yr_data(prefix='actpollite_s2_like',
+                    camb_file='camb_72686694_lensedcls.dat'):    
+    """
+    Results from ACTPol second season data release (Louis et al, 2016).
+
+    This function reads data from the ACTPol 2016 likelihood, which can be 
+    downloaded from here:
+    https://lambda.gsfc.nasa.gov/data/suborbital/ACT/actpol_2016/actpollite_s2_like.tar.gz
+    It also reads BB spectrum data from a .dat file that is copied from 
+    Table 5 of Louis et al. That .dat file is included in the git repo
+    with this code.
+
+    Parameters
+    ----------
+    prefix : str, optional
+        Path to directory containing ACTPol second season likelihood.
+    camb_file : str, optional
+        Path to CAMB .dat file containing lensed-LCDM theory spectra.
+
+    Returns
+    -------
+    EE, BB : dict
+        Bandpower statistics for EE and BB.
+
+    """
+
     # Data structures for results.
     EE = {'nsplit': 4}
     BB = {'nsplit': 4}
-    
+
+    # Read .dat file containing BB spectra from Table 5 of Louis et al.
+    # Columns 1,2 contain ell bin boundaries.
+    # Column 4 contains BB error bars, specified for D_l in uK^2.
+    BBdata = np.genfromtxt('actpol_louis_2016_tbl5.dat')
+    BB['sigma'] = BBdata[:,4]
+    EE['bins'] = np.concatenate((BBdata[:,1], [BBdata[-1,2]]))
+    BB['bins'] = EE['bins']
+
+    # Read bandpower error bars for EE.
+    EEpath = join(prefix, 'fullspectra', 'spectrum_EE.dat')
+    EEdata = np.genfromtxt(EEpath)
+    EE['sigma'] = EEdata[:,2] # sigma(C_l), in uK^2
+
+    # Read ACTPol bandpower window functions.
+    bpwffile = join(prefix, 'fullspectra', 'BblMean_EE.dat')
+    bpwf = np.genfromtxt(bpwffile)
+    # Get EE and BB theory spectra (generated with CAMB).
+    (ell, EE_th, BB_th) = theory_spectra(camb_file)
+    # Find common ell range between ACTPol bpwf and CAMB theory spectrum.
+    # ACTPol bpwf are defined from ell = 1--9000.
+    lmin = np.max([1, ell.min()])
+    lmax = np.min([9000, ell.max()])
+    i0_bpwf = int(lmin - 1)
+    i1_bpwf = int(lmax)
+    i0_th = int(np.where(ell == lmin)[0][0])
+    i1_th = int(np.where(ell == lmax)[0][0] + 1)
+    # Calculate mean ell for each bandpower, bandpower expectation values,
+    # and beam window function.
+    nbin = bpwf.shape[0]
+    EE['ell'] = np.zeros(nbin)
+    BB['ell'] = np.zeros(nbin)
+    EE['expv'] = np.zeros(nbin)
+    BB['expv'] = np.zeros(nbin)
+    EE['Bl2'] = np.zeros(nbin)
+    BB['Bl2'] = np.zeros(nbin)
+    fwhm_deg = 1.3 / 60.
+    sigma_rad = np.radians(fwhm_deg / np.sqrt(8.0 * np.log(2.0)))
+    Bl2 = np.exp(-1.0 * ell * (ell + 1.0) * sigma_rad**2)
+    for i in range(nbin):
+        # Mean ell for bandpower.
+        EE['ell'][i] = np.average(np.arange(i0_bpwf, i1_bpwf),
+                                  weights=bpwf[i, i0_bpwf:i1_bpwf])
+        BB['ell'][i] = EE['ell'][i]
+        # Bandpower expectation values from theory spectra.
+        EE['expv'][i] = np.average(EE_th[i0_th:i1_th],
+                                   weights=bpwf[i, i0_bpwf:i1_bpwf])
+        BB['expv'][i] = np.average(BB_th[i0_th:i1_th],
+                                   weights=bpwf[i, i0_bpwf:i1_bpwf])
+        # Beam window function.
+        EE['Bl2'][i] = np.average(Bl2[i0_th:i1_th],
+                                  weights=bpwf[i, i0_bpwf:i1_bpwf])
+        BB['Bl2'][i] = EE['Bl2'][i]
+
+    # Convert BB error bars from D_l to C_l.
+    BB['sigma'] = BB['sigma'] * 2.0 * np.pi / BB['ell'] / (BB['ell'] + 1.0)
+        
     return (EE, BB)
 
 
