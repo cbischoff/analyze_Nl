@@ -5,7 +5,6 @@ analyze_Nl.py
 Derives N_l curves for published CMB B-mode results, including:
   - BICEP2 / Keck 2014 results
   - ACTPol 1st year (Naess et al) and 2nd year (Louis et al)
-  - SPTPol (Keisler et al / Crites et al)
   - POLARBEAR 2014 results
   - QUIET Q-band and W-band results
 
@@ -21,7 +20,6 @@ be a path to the directory containing the appropriate data release. Data release
 following links:
   - BICEP2/Keck : http://www.bicepkeck.org/
   - ACTPol : https://lambda.gsfc.nasa.gov/product/act/actpol_prod_table.cfm
-  - SPTPol : https://lambda.gsfc.nasa.gov/product/spt/sptpol_prod_table.cfm
   - POLARBEAR : https://lambda.gsfc.nasa.gov/product/polarbear/polarbear_prod_table.cfm
   - QUIET : https://lambda.gsfc.nasa.gov/product/quiet/index.cfm
 If you download and extract the tarball from those links in the same directory
@@ -375,14 +373,6 @@ def ACTpol_2yr_data(prefix='actpollite_s2_like',
     EE['Nl_actual_D6'] = Nl_actual[:,2]
     EE['Nl_actual_D56_PA1'] = Nl_actual[:,3]
     EE['Nl_actual_D56_PA2'] = Nl_actual[:,4]
-    
-    return (EE, BB)
-
-
-def SPTpol_data():
-    # Data structures for results.
-    EE = {'nsplit': 1}
-    BB = {'nsplit': 1}
     
     return (EE, BB)
 

@@ -3,7 +3,6 @@ BK14_cosmomc
 like_actpol_s1
 actpollite_s2_like
 polarbear_1
-sptpol_2015
 
-# Also, miscellaneous data file (like CAMB files)
+# Also, miscellaneous data files (like CAMB files)
 *.dat
